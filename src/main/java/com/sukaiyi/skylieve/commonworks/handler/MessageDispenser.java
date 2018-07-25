@@ -5,12 +5,8 @@ import com.jayway.jsonpath.JsonPath;
 import com.jayway.jsonpath.ReadContext;
 import lombok.extern.slf4j.Slf4j;
 import net.minidev.json.JSONArray;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
-import java.io.File;
-import java.net.URI;
-import java.net.URISyntaxException;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
@@ -22,45 +18,34 @@ import java.util.Map;
 public class MessageDispenser {
 
 	private Map<String, MessageHandler> handlers;
+	private String[] handlerNames = new String[]{
+			"com.sukaiyi.skylieve.commonworks.handler._9MsgHandler",
+			"com.sukaiyi.skylieve.commonworks.handler._10MsgHandler",
+			"com.sukaiyi.skylieve.commonworks.handler._17MsgHandler",
+			"com.sukaiyi.skylieve.commonworks.handler._23MsgHandler",
+			"com.sukaiyi.skylieve.commonworks.handler._73MsgHandler",
+			"com.sukaiyi.skylieve.commonworks.handler._102MsgHandler",
+			"com.sukaiyi.skylieve.commonworks.handler._103MsgHandler",
+	};
 
 	public MessageDispenser() {
 		handlers = new LinkedHashMap<>();
-		String basePack = "com.sukaiyi.skylieve.commonworks.handler";
-		doSearch(basePack);
-	}
-
-	private void doSearch(String pkgName) {
-		URI url = null;
-		try {
-			url = MessageDispenser.class.getClassLoader().getResource(pkgName.replace(".", "/")).toURI();
-		} catch (URISyntaxException e) {
-			e.printStackTrace();
-		}
-		if (url == null) {
-			return;
-		}
-		File[] files = new File(url).listFiles();
-		if (files == null) {
-			return;
-		}
-		for (File file : files) {
-			if (file.isDirectory()) {
-				doSearch(pkgName + "." + file.getName());
-			}
-			if (file.getName().endsWith(".class")) {
-				try {
-					Class<?> clazz = Class.forName(String.format("%s.%s", pkgName, file.getName().replace(".class", "")));
-					Class[] interfaces = clazz.getInterfaces();
-					for (Class cls : interfaces) {
-						if (cls.getTypeName().equals("com.sukaiyi.skylieve.commonworks.handler.MessageHandler")) {
-							handlers.put(clazz.getSimpleName(), (MessageHandler) clazz.newInstance());
-						}
+		for (String handlerName : handlerNames)
+			try {
+				Class cls = Class.forName(handlerName);
+				Class[] interfaces = cls.getInterfaces();
+				for (Class c : interfaces) {
+					if (c.getTypeName().equals("com.sukaiyi.skylieve.commonworks.handler.MessageHandler")) {
+						String clsName = cls.getSimpleName();
+						handlers.put(clsName, (MessageHandler) cls.newInstance());
+						break;
 					}
-				} catch (ClassNotFoundException | IllegalAccessException | InstantiationException e) {
-					e.printStackTrace();
 				}
+			} catch (ClassNotFoundException | InstantiationException e) {
+				e.printStackTrace();
+			} catch (IllegalAccessException e) {
+				e.printStackTrace();
 			}
-		}
 	}
 
 	public void dispense(DocumentContext panorama, ReadContext messages) {
